@@ -1,5 +1,10 @@
 #Genesis-RealEstate-AI
 
+*metadata dataset is being used which is obtained by web scraping magicbricks site for houses in bangalore. Web scraping forms a dataset which is cleaned 
+using pandas and combined with the rented house dataset to obtain a brief analysis of average rent rate of the particular area. This is ultimately calculated
+using formulas and compared with the buy rate of each property over a tenure of 20yrs, on the basis of which, a buy-rent decision is made and added furthur to
+the dataset. An AI chatbot is integrated which examines the dataset to provide appropriate responses.
+
 #Preview
 
 <img width="1912" height="910" alt="Screenshot 2026-01-10 183316" src="https://github.com/user-attachments/assets/aec5f2eb-a110-4ba4-9047-aa620ac76993" />
