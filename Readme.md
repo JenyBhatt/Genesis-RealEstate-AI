@@ -10,7 +10,7 @@
 
 #AI Chatbot preview
 
-<img width="1885" height="916" alt="Screenshot 2026-01-10 183958" src="https://github.com/user-attachments/assets/ac10f0d7-3df2-4b6c-bb10-945a5b59729f" />
+<img width="1920" height="1080" alt="Screenshot (278)" src="https://github.com/user-attachments/assets/c344d20f-2e4c-4376-b937-0afcb5676166" />
 
 
 #Graphical data with explanatory analysis
