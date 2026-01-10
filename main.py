@@ -26,11 +26,11 @@ client = OpenAI(api_key="ENTER-YOUR-OPENAI-KEY-HERE")
 try:
     # 1. Try loading from the 'data' folder first (Best Practice)
     df = pd.read_csv("metadata.csv")
-    print("✅ Database loaded successfully from data/metadata.csv")
+    print("Database loaded successfully from data/metadata.csv")
 
 except FileNotFoundError:
     # 3. If that fails too, print the error
-    print("❌ CRITICAL ERROR: Could not find 'metadata.csv' in 'data/' or root folder.")
+    print("CRITICAL ERROR: Could not find 'metadata.csv' in 'data/' or root folder.")
     print("Please check: Is the file named 'magicbricks_bangalore.csv' instead?")
     df = pd.DataFrame()
 # ==========================================
@@ -127,7 +127,7 @@ async def chat_endpoint(request: UserRequest):
         ]
     )
     
-    # FIX for /chat endpoint as well:
+    # chat endpoint
     results_safe = results.fillna(0)
     table_data = results_safe.head(5)[['title', 'location', 'price_raw', 'monthly_emi', 'decision']].to_dict(orient='records')
 
