@@ -19,7 +19,7 @@ app = FastAPI(
 )
 
 # REPLACE THIS with your actual OpenAI API Key
-client = OpenAI(api_key="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") 
+client = OpenAI(api_key="YOUR-API-KEY") 
 
 # Load the Database
 # Load the Database
@@ -153,7 +153,7 @@ async def filter_endpoint(req: FilterRequest):
     if req.decision_type != "All":
         filtered = filtered[filtered['decision'].str.lower() == req.decision_type.lower()]
     
-    # --- THE FIX IS HERE ---
+    
     # Replace NaN (Not a Number) and Infinity with 0 so JSON doesn't crash
     filtered = filtered.fillna(0)
     
