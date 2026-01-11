@@ -13,13 +13,13 @@ try:
     df_loc = pd.read_csv("metadata.csv", usecols=['location'])
     all_locations = sorted(df_loc['location'].dropna().unique().tolist())
 except:
-    all_locations = ["Hebbal", "Whitefield"] # Fallback
+    all_locations = ["Hebbal", "Whitefield"] 
 
 # 2. PAGE CONFIG
 st.set_page_config(page_title="Genesis Real Estate Dashboard", layout="wide", initial_sidebar_state="expanded")
 API_URL = "http://127.0.0.1:8000"
 
-# 3. CUSTOM CSS (For the "Calculator Card" look)
+# 3. CUSTOM CSS (For "Calculator Card")
 st.markdown("""
     <style>
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
@@ -40,9 +40,7 @@ st.title("Genesis : Real Estate Investment Analyser")
 st.caption("Hybrid System: AI Agent + Deterministic Data Engine")
 st.caption("@JenyBhatt")
 
-# ==================================================
 # LEFT SIDEBAR (FILTERS ONLY)
-# ==================================================
 with st.sidebar:
     st.header("🎛️ Global Filters")
     selected_locations = st.multiselect("Select Locations", all_locations, default=all_locations[:1])
@@ -58,7 +56,7 @@ col_app, col_tools = st.columns([3, 1], gap="medium")
 #RIGHT COLUMN: THE CALCULATOR WIDGET
 with col_tools:
     st.markdown("### 🧮 Mortgage Calculator")
-    with st.container(border=True): # Makes it look like a card
+    with st.container(border=True): #border for box
         home_price = st.number_input("Property Price (₹)", min_value=1000000, value=6500000, step=500000)
         down_payment_pct = st.slider("Down Payment (%)", 10, 80, 20)
         interest_rate = st.slider("Interest Rate (%)", 6.0, 12.0, 8.5)
