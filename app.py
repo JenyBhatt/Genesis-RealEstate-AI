@@ -51,13 +51,11 @@ with st.sidebar:
     st.divider()
     st.info(f"System Status: ● Online\n{len(selected_locations)} Areas Active")
 
-# ==================================================
 # MAIN LAYOUT: SPLIT SCREEN (Chat vs Tools)
-# ==================================================
 # Create 2 columns: Main App (70%) | Tools Panel (30%)
 col_app, col_tools = st.columns([3, 1], gap="medium")
 
-# --- RIGHT COLUMN: THE CALCULATOR WIDGET ---
+#RIGHT COLUMN: THE CALCULATOR WIDGET
 with col_tools:
     st.markdown("### 🧮 Mortgage Calculator")
     with st.container(border=True): # Makes it look like a card
@@ -79,7 +77,7 @@ with col_tools:
         st.metric(label="Monthly EMI", value=f"₹{int(emi):,}")
         st.caption(f"Total Loan: ₹{int(loan_amount):,}")
 
-# --- LEFT COLUMN: THE MAIN APP (TABS) ---
+#LEFT COLUMN: THE MAIN APP (TABS) 
 with col_app:
     tab_chat, tab_data = st.tabs(["🤖 AI Advisor", "🔍 Market Data"])
 
