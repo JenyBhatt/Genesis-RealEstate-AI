@@ -1,162 +1,171 @@
+import os
 import pandas as pd
-import json
-import io
-import base64
-import matplotlib
-matplotlib.use('Agg') # Prevents GUI errors
-import matplotlib.pyplot as plt
 from fastapi import FastAPI
 from pydantic import BaseModel
-from openai import OpenAI
+from typing import List, Optional
+from google import genai
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import re
 
-# ==========================================
-# 1. CONFIGURATION & SETUP
-# ==========================================
 
-app = FastAPI(
-    title="Real Estate RAG Agent",
-    description="A deterministic RAG agent for real estate analysis."
+# 1. CONFIGURATION
+GOOGLE_API_KEY = "Your-API-key"
+
+client = genai.Client(api_key=GOOGLE_API_KEY)
+# model used to generate responses
+MODEL_NAME = 'gemini-3-flash-preview'
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# REPLACE THIS with your actual OpenAI API Key
-client = OpenAI(api_key="YOUR-API-KEY") 
-
-# Load the Database
-# Load the Database
+# 2. DATA LOADING 
 try:
-    # 1. Try loading from the 'data' folder first (Best Practice)
     df = pd.read_csv("metadata.csv")
-    print("Database loaded successfully from data/metadata.csv")
+    
+    # Check if the clean column exists
+    if 'price_value' in df.columns:
+        # ensure it's numeric (handle any accidental text)
+        df['price_value'] = pd.to_numeric(df['price_value'], errors='coerce').fillna(0)
+        print(" Database loaded successfully.")
+        print(f"   Sample Data: {df[['location', 'price_value']].iloc[0].to_dict()}")
+    else:
+        print(" ERROR: 'price_value' column missing.")
+        df['price_value'] = 0
 
-except FileNotFoundError:
-    # 3. If that fails too, print the error
-    print("CRITICAL ERROR: Could not find 'metadata.csv' in 'data/' or root folder.")
-    print("Please check: Is the file named 'magicbricks_bangalore.csv' instead?")
+except Exception as e:
+    print(f"CSV Error: {e}")
     df = pd.DataFrame()
-# ==========================================
-# 2. DATA MODELS
-# ==========================================
 
-class UserRequest(BaseModel):
+# 3. ENDPOINTS
+class FilterRequest(BaseModel):
+    locations: List[str]
+    min_price: float
+    max_price: float
+    decision_type: str 
+
+class ChatRequest(BaseModel):
     query: str
 
-class AgentResponse(BaseModel):
-    answer: str
-    chart_base64: str | None = None
-    properties_found: list | None = None
-
-class FilterRequest(BaseModel):
-    locations: list[str] = []
-    min_price: float = 0
-    max_price: float = 1000000000
-    decision_type: str = "All"
-
-# ==========================================
-# 3. HELPER FUNCTIONS
-# ==========================================
-
-def get_search_params(user_query: str):
-    system_prompt = """
-    Return a VALID JSON object ONLY.
-    Fields: "intent" (FILTER/EXPLAIN), "location" (string/null), "max_price" (number/null).
-    """
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_query}
-            ],
-            response_format={ "type": "json_object" }
-        )
-        return json.loads(response.choices[0].message.content)
-    except Exception:
-        return {}
-
-def generate_plot(property_row):
-    try:
-        fig, ax = plt.subplots(figsize=(6, 4))
-        costs = [property_row['final_buying_cost'], property_row['final_renting_cost']]
-        labels = ['Total Buying (20Y)', 'Total Renting (20Y)']
-        colors = ['#ff9999', '#66b3ff']
-        
-        ax.bar(labels, costs, color=colors)
-        ax.set_ylabel('Total Cost (INR)')
-        ax.set_title(f"Wealth Projection: {property_row['title'][:20]}...")
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'₹{x/10000000:.1f}Cr'))
-        
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight')
-        buf.seek(0)
-        img_str = base64.b64encode(buf.read()).decode('utf-8')
-        plt.close(fig)
-        return img_str
-    except Exception:
-        return None
-
-# ==========================================
-# 4. API ENDPOINTS
-# ==========================================
-
-@app.post("/chat", response_model=AgentResponse)
-async def chat_endpoint(request: UserRequest):
-    # A. Agentic Search
-    params = get_search_params(request.query)
-    loc = params.get('location')
-    
-    # B. Deterministic Retrieval
-    if loc:
-        results = df[df['location'].str.contains(loc, case=False, na=False)]
-    else:
-        results = df.head(5) 
-
-    if results.empty:
-        return AgentResponse(answer=f"I couldn't find properties in '{loc}'.")
-
-    # C. AI Generation
-    top_property = results.iloc[0]
-    context_text = ""
-    for _, p in results.head(3).iterrows():
-        context_text += f"Property: {p['title']}, Price: {p['price_raw']}, Decision: {p['decision']}\n"
-
-    llm_response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a Real Estate Expert. Explain using only the data provided."},
-            {"role": "user", "content": f"Context: {context_text}\n\nQuestion: {request.query}"}
-        ]
-    )
-    
-    # chat endpoint
-    results_safe = results.fillna(0)
-    table_data = results_safe.head(5)[['title', 'location', 'price_raw', 'monthly_emi', 'decision']].to_dict(orient='records')
-
-    return AgentResponse(
-        answer=llm_response.choices[0].message.content,
-        chart_base64=generate_plot(top_property),
-        properties_found=table_data
-    )
-
 @app.post("/filter")
-async def filter_endpoint(req: FilterRequest):
-    filtered = df.copy()
+def filter_properties(req: FilterRequest):
+    if df.empty: return []
+    
+    print(f"🔍 Filter: {req.locations} | ₹{req.min_price} - ₹{req.max_price}")
+    
+    temp_df = df.copy()
     
     # 1. Location Filter
     if req.locations:
-        pattern = '|'.join(req.locations)
-        filtered = filtered[filtered['location'].str.contains(pattern, case=False, na=False)]
+        pattern = '|'.join([re.escape(loc) for loc in req.locations])
+        temp_df = temp_df[temp_df['location'].astype(str).str.contains(pattern, case=False, na=False)]
+    
+    # 2. Price Filter (Direct Comparison)
+    temp_df = temp_df[
+        (temp_df['price_value'] >= req.min_price) & 
+        (temp_df['price_value'] <= req.max_price)
+    ]
         
-    # 2. Price Filter
-    filtered = filtered[(filtered['price_value'] >= req.min_price) & (filtered['price_value'] <= req.max_price)]
-    
-    # 3. Strategy Filter
-    if req.decision_type != "All":
-        filtered = filtered[filtered['decision'].str.lower() == req.decision_type.lower()]
-    
-    
-    # Replace NaN (Not a Number) and Infinity with 0 so JSON doesn't crash
-    filtered = filtered.fillna(0)
-    
-    return filtered.head(50).to_dict(orient='records')
+    # 3. Decision Filter
+    if req.decision_type != "All" and 'decision' in temp_df.columns:
+        temp_df = temp_df[temp_df['decision'].str.upper() == req.decision_type.upper()]
 
-# To Run: uvicorn main:app --reload
+    print(f"   ✅ Found {len(temp_df)} properties.")
+    # Return specific columns for the UI
+    return temp_df[['title', 'location', 'price_raw', 'monthly_emi', 'decision']].head(50).fillna("").to_dict(orient="records")
+
+
+from difflib import get_close_matches
+
+@app.post("/chat")
+def chat_agent(req: ChatRequest):
+    try:
+        user_query = req.query.lower()
+        
+        # SMART SEARCH LOGIC
+        relevant_info = "No specific property data found in the database."
+        
+        if not df.empty and 'location' in df.columns:
+            # 1. Clean the database locations for searching
+            # Create a list of all locations from the CSV
+            all_locations = df['location'].astype(str).tolist()
+            
+            # 2. Try to find the best match for words in the user's query
+            # We check if any significant part of the query matches a location
+            best_match = None
+            
+            # Simple keyword scan: Check if any CSV location substring is in the query
+            # OR if the query substring is in the CSV location
+            for loc in all_locations:
+                clean_loc = loc.lower()
+                # Check intersection of words
+                if clean_loc in user_query or user_query in clean_loc:
+                    best_match = loc
+                    break
+                
+                # If still no match, try checking specific property names if they exist
+                if 'title' in df.columns:
+                     for title in df['title'].astype(str):
+                         if title.lower() in user_query:
+                             best_match = loc
+                             break
+            
+            # 3. If a match is found, retrieve data
+            if best_match:
+                # Get the row corresponding to the matched location
+                row = df[df['location'] == best_match].iloc[0]
+                
+                price = row.get('price_raw', row.get('price', 'N/A'))
+                emi = row.get('monthly_emi', 'N/A')
+                decision = row.get('decision', 'N/A')
+                location_name = row.get('location', 'this area')
+                
+                relevant_info = (
+                    f"DATA FOUND: The property at {location_name} is listed at {price}. "
+                    f"Estimated Monthly EMI: ₹{emi}. "
+                    f"AI Investment Verdict: {decision}."
+                )
+
+        # Construct the Prompt
+        prompt = f"""
+        You are 'Genesis', an expert Real Estate Investment Advisor.
+        
+        USER QUESTION: "{req.query}"
+        
+        DATABASE FACTS:
+        {relevant_info}
+        
+        INSTRUCTIONS:
+        1. If 'DATA FOUND' is above, you MUST use those exact numbers in your answer. 
+        2. Explain *why* the verdict ({decision} if available) makes sense.
+        3. If no data is found, give general market advice for Bangalore.
+        4. Keep it professional and concise.
+        """
+        
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt
+        )
+        
+        return {
+            "answer": response.text,
+            "properties_found": [],
+            "chart_base64": None
+        }
+
+    except Exception as e:
+        print(f" AI Error: {e}")
+        return {
+            "answer": "My database connection flickered. Please try asking about 'Whitefield' or 'Hebbal' directly.",
+            "properties_found": [],
+            "chart_base64": None
+        }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)
