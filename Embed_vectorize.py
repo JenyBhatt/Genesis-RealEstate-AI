@@ -24,6 +24,6 @@ index.add(np.array(embeddings).astype('float32'))
 # 5. Save the index and the data for the next step
 faiss.write_index(index, "property_index.faiss")
 # ave the dataframe to match the index IDs back to property details later as metadata.csv, the main dataset
-df.to_csv("data/metadata.csv", index=False)
+df.to_csv("metadata.csv", index=False)
 
 print("Success! 'property_index.faiss' and 'metadata.csv' have been created.")
