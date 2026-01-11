@@ -19,7 +19,7 @@ app = FastAPI(
 )
 
 # REPLACE THIS with your actual OpenAI API Key
-client = OpenAI(api_key="ENTER-YOUR-OPENAI-KEY-HERE") 
+client = OpenAI(api_key="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") 
 
 # Load the Database
 # Load the Database
