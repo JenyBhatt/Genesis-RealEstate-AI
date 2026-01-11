@@ -31,7 +31,7 @@ try:
     
     # Check if the clean column exists
     if 'price_value' in df.columns:
-        # ensure it's numeric (handle any accidental text)
+        # to numeric
         df['price_value'] = pd.to_numeric(df['price_value'], errors='coerce').fillna(0)
         print(" Database loaded successfully.")
         print(f"   Sample Data: {df[['location', 'price_value']].iloc[0].to_dict()}")
