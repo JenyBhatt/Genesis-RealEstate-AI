@@ -12,8 +12,8 @@ Streamlit is being used for website UI.
 Hybrid RAG implementation :
 FAISS is being used as a functional element to perform vector embeddings(for semantic search) which is added as a new column (statement) in metadata.csv
     * **Pandas:** Handles all hard math (EMI, ROI) to ensure zero calculation errors.
-    * **GPT-4o:** Acts as the 'Financial Advisor' synthesizing the data into human-readable advice and query analysis.
-GPT 4-o is used for the categorization of query mood to make the process more efficient. How-
+    * **Gemini-3.0:** Acts as the 'Financial Advisor' synthesizing the data into human-readable advice and query analysis.
+Gemini 3.0 is used for the categorization of query mood to make the process more efficient(owing to api key limit). How-
 ever, we are not using it for calculation purposes; for that, we completely rely on pandas and
 dataset calculations.
 
